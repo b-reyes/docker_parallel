@@ -10,9 +10,8 @@ using namespace std;
 // This script will sum the values 1 to N in parallel (no arrays). 
 // This will be done as follows. First, split up the sum amongst 
 // the processors in a round robin fashion. Second, have each process 
-// compute their local sum. Next, have each process (besides the master 
-// core) send their local sum to the master core. Last, have the master
-// core collect each rank's local sum and sum them up to create the final sum.  
+// compute their local sum. Last, use MPI_Reduce to gather each local 
+// sum and compute a final sum.  
 
 int main(int argc, char **argv)
 {
@@ -65,22 +64,10 @@ int main(int argc, char **argv)
         local_sum += start + 1*i;
     }
 
-    long int final_sum = local_sum; // final sum of 1 to N
+    long int final_sum; // variable to hold the final sum 
 
-    // have each process send their local sum to master rank 
-    if (my_rank == 0){
-
-        long int rank_local_sum; // variable that will temporarily hold each rank's local sum
-
-        // get each rank's local sum and add it to final_sum
-        for (int i=1; i<num_proc; i++){
-            MPI_Status status; 
-            MPI_Recv( &rank_local_sum , 1 , MPI_LONG , i , i , MPI_COMM_WORLD , &status);
-            final_sum += rank_local_sum;
-            }
-    }else{
-        MPI_Send( &local_sum, 1, MPI_LONG , 0 , my_rank , MPI_COMM_WORLD);
-    }
+    // Use Reduce to collect all local sum and create the final sum
+    MPI_Reduce( &local_sum , &final_sum , 1, MPI_LONG , MPI_SUM, 0 , MPI_COMM_WORLD);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
