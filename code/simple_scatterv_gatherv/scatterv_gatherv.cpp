@@ -4,6 +4,7 @@
 #include <vector>
 #include <numeric>
 #include <sstream>
+#include<tuple>
 
 using namespace std; 
 
@@ -13,52 +14,32 @@ using namespace std;
 // compute their local sum. Last, use MPI_Reduce to gather each local 
 // sum and compute a final sum.  
 
+
+// function declarations 
+vector<int> get_master_data(int& N, int& my_rank);
+tuple<int, int> initialize_MPI(int argc, char **argv); 
+void print_rank_vector(vector<int> vec, int position, int my_rank);
+
+
 int main(int argc, char **argv)
 {
 
-    // initialize MPI 
-    MPI_Init(&argc , &argv);
-
-    // Get the total number of processes
-    int num_proc;
-    MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
-
-    // Get the rank of the running process
-    int my_rank; 
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank); 
+    auto [num_proc, my_rank] = initialize_MPI(argc, argv);
 
     // get the final number in the sum from command line 
-    long int N = stoi(argv[1]);
+    int N = stoi(argv[1]);
 
-    vector<int> init_data(N); // vector that will hold data on root process
+    // construct data that will be scattered 
+    auto master_data = get_master_data(N, my_rank);
 
-    // create an array on the root process to send to all othe processes 
-    if (my_rank == 0){ 
-
-        // fill data with values 1 to N
-        for (int i=0; i<N; i++){
-            init_data[i] = i + 1; 
-        }
-    }
-
+    // create vector that will hold the scatter data 
     vector<int> data(2);
 
     MPI_Barrier(MPI_COMM_WORLD); // blocking call 
 
-    MPI_Scatter( init_data.data() , 2, MPI_INT, data.data() , 2, MPI_INT , 0, MPI_COMM_WORLD);
+    MPI_Scatter( master_data.data() , 2, MPI_INT, data.data() , 2, MPI_INT , 0, MPI_COMM_WORLD);
 
-    for (int j = 0; j < 2; j++)
-    {
-        if (j == 0){
-            cout << "my_rank: " << my_rank << endl;
-        }
-        cout << data[j] << " "; 
-        if (j ==1){
-            cout << endl;
-        }
-    }
-    
-
+    print_rank_vector(data, 2, my_rank); 
 
     // // flag to say what to print
     // int print_flag = stoi(argv[2]);
@@ -117,4 +98,60 @@ int main(int argc, char **argv)
     MPI_Finalize();
 
     return 0;
+}
+
+tuple<int, int> initialize_MPI(int argc, char **argv){
+
+    // initialize MPI 
+    MPI_Init(&argc , &argv);
+
+    // Get the total number of processes
+    int num_proc;
+    MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
+
+    // Get the rank of the running process
+    int my_rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank); 
+
+    return {num_proc,my_rank};
+}
+
+void print_rank_vector(vector<int> vec, int position, int my_rank){
+
+    for (int j = 0; j < position; j++)
+    {
+        if (j == 0){
+            cout << "my_rank: " << my_rank << endl;
+        }
+        cout << vec[j] << " "; 
+        if (j == position - 1){
+            cout << endl; 
+        }
+    }
+
+}
+
+
+vector<int> get_master_data(int& N, int& my_rank){
+    /**
+     * Constructs an array filled with values 1 to N,
+     * if my_rank is zero, else creates an empty array,
+    */
+
+    // vector that will hold data on root process
+    vector<int> master_data;
+
+    // create an array on the root process to send to all othe processes 
+    if (my_rank == 0){ 
+
+        // resize master_data
+        master_data.resize(N);
+
+        // fill data with values 1 to N
+        for (int i=0; i<N; i++){
+            master_data[i] = i + 1; 
+        }
+    }
+
+    return master_data; 
 }
