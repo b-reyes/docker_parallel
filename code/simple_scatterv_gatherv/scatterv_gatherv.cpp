@@ -16,10 +16,10 @@ using namespace std;
 
 
 // function declarations 
-vector<int> get_master_data(int& N, int& my_rank);
+vector<int> get_master_data(int N, int my_rank);
 tuple<int, int> initialize_MPI(int argc, char **argv); 
-void print_rank_vector(vector<int> vec, int position, int my_rank);
-
+void print_rank_vector(vector<int>& vec, int position, int my_rank);
+vector<int> scatter_data(vector<int>& data, int my_rank, int num_proc); 
 
 int main(int argc, char **argv)
 {
@@ -32,14 +32,12 @@ int main(int argc, char **argv)
     // construct data that will be scattered 
     auto master_data = get_master_data(N, my_rank);
 
-    // create vector that will hold the scatter data 
-    vector<int> data(2);
 
-    MPI_Barrier(MPI_COMM_WORLD); // blocking call 
-
-    MPI_Scatter( master_data.data() , 2, MPI_INT, data.data() , 2, MPI_INT , 0, MPI_COMM_WORLD);
 
     print_rank_vector(data, 2, my_rank); 
+
+
+    // MPI_Barrier(MPI_COMM_WORLD); // blocking call 
 
     // // flag to say what to print
     // int print_flag = stoi(argv[2]);
@@ -101,6 +99,10 @@ int main(int argc, char **argv)
 }
 
 tuple<int, int> initialize_MPI(int argc, char **argv){
+    /**
+     * Initializes MPI and returns the number of
+     * processes and the rank of the running process.
+    */
 
     // initialize MPI 
     MPI_Init(&argc , &argv);
@@ -116,7 +118,12 @@ tuple<int, int> initialize_MPI(int argc, char **argv){
     return {num_proc,my_rank};
 }
 
-void print_rank_vector(vector<int> vec, int position, int my_rank){
+void print_rank_vector(vector<int>& vec, int position, int my_rank){
+    /**
+     * A simple helper function that will print the rank of the
+     * running process and then print the input vector up until 
+     * the given position. 
+    */
 
     for (int j = 0; j < position; j++)
     {
@@ -132,7 +139,7 @@ void print_rank_vector(vector<int> vec, int position, int my_rank){
 }
 
 
-vector<int> get_master_data(int& N, int& my_rank){
+vector<int> get_master_data(int N, int my_rank){
     /**
      * Constructs an array filled with values 1 to N,
      * if my_rank is zero, else creates an empty array,
@@ -154,4 +161,20 @@ vector<int> get_master_data(int& N, int& my_rank){
     }
 
     return master_data; 
+}
+
+vector<int> scatter_data(vector<int>& input_data, int my_rank, int num_proc){
+    /**
+     * A function that scatters the input data to all 
+     * processes in MPI_COMM_WORLD.
+    */
+
+    
+
+    // create vector that will hold the scatter data 
+    vector<int> local_data(2);
+
+    MPI_Scatter( input_data.data() , 2, MPI_INT, local_data.data() , 2, MPI_INT , 0, MPI_COMM_WORLD);
+
+    return local_data;
 }
